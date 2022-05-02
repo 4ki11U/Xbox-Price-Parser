@@ -139,5 +139,8 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-/database_files/my_tested_database.db
-.idea
+/database_files/*.db
+.idea!/additional/price_30-04-2022.json
+!/additional/sending.py
+!/123.py
+!/12331.py
