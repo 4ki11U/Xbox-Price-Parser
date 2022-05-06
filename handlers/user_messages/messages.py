@@ -49,7 +49,6 @@ async def start(message: types.Message):
                 price = rows.get('price')
                 region = rows.get('region')
                 url = rows.get('url')
-                # f'Регион : <b>{price[0]}</b>\n\n' \
                 message = f'Название игры : <b>{title}</b> \n\n' \
                           f'Самая низкая цена : <b>{price}</b> 🔥\n' \
                           f'Регион с такой ценой : <b>{region}</b>\n\n' \
@@ -57,7 +56,6 @@ async def start(message: types.Message):
                 await bot.send_photo(chat_id=xprices_channel, photo=img, caption=message, disable_notification=False)
 
                 if index % 15 == 0:
-                    #await bot.send_message(chat_id=xprices_channel, text='Сплю 35 сек')
                     await sleep(40)
     else:
         await message.answer('Я пока не знаю как на это реагировать :(', reply_markup=types.ReplyKeyboardRemove())
