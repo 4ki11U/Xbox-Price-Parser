@@ -10,7 +10,7 @@ from aiogram.dispatcher.filters import Text
 
 from conductor import dp, bot
 
-from additional.parser import parse_site_xbox_now, search_new_deals
+from additional.parser import parsing_names_prices_from_links, search_new_deals
 from datetime import datetime
 import json
 from asyncio import sleep
@@ -36,7 +36,7 @@ async def start(message: types.Message):
 
         checking_for_new_news = search_new_deals()
         if checking_for_new_news == True:
-            file = parse_site_xbox_now()
+            file = parsing_names_prices_from_links()
 
             with open(f'{file}', encoding="utf-8") as parse_result:
                 data_file = json.load(parse_result)
@@ -46,7 +46,7 @@ async def start(message: types.Message):
                 print(f'index is : {index}')
                 title = rows.get('game_name')
                 img = rows.get('img')
-                price = rows.get('price')
+                price = rows.get('low_price')
                 region = rows.get('region')
                 url = rows.get('url')
                 message = f'Название игры : <b>{title}</b> \n\n' \

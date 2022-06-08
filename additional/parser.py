@@ -1,4 +1,3 @@
-from database_files.X_Database import XboxDB
 from bs4 import BeautifulSoup
 from requests import cookies
 from datetime import datetime
@@ -7,12 +6,8 @@ import requests
 import json
 import os
 
-xbox = XboxDB(r'D:\Python Projects\Xboxer-bot\database_files\xboxer_database.db')
-
-user = fake_useragent.UserAgent().random
-
 header = {
-    'user-agent': user
+    'user-agent': fake_useragent.UserAgent().random
 }
 
 cookies = {
@@ -22,89 +17,7 @@ cookies = {
 general_newsblock_link = 'https://www.xbox-now.com/ru/news'
 
 
-def parse_site_xbox_now(price_dictionary : dict):
-    general_news_link = 'https://www.xbox-now.com/ru/news'
-    response = requests.get(general_news_link, headers=header, cookies=cookies)
-    soup = BeautifulSoup(response.text, "lxml")
-    news_blocks = soup.find('div', class_='panel-body').find_all('a')
-    # news_blocks = soup.find('div', class_='news-entry-newstext').find_all('a')
-
-    all_game_links_from_newsblock = {}
-    total_game_parsing_result = []
-
-    for game_rows in news_blocks:
-        if not 'Spoiler (expand)' in game_rows:
-            links = game_rows['href']
-
-            titles = game_rows['title']
-            all_game_links_from_newsblock[titles] = links
-
-    print(all_game_links_from_newsblock)
-
-    for game_name, game_links in all_game_links_from_newsblock.items():
-        try:
-            fully_game_details = {}
-
-            response = requests.get(game_links, headers=header, cookies=cookies)
-            soup = BeautifulSoup(response.text, "lxml")
-            headers = soup.find(class_="content-header").find('h1').text
-
-            picture_url = soup.find(itemprop="image")['src']
-
-            fully_game_details['game_name'] = game_name
-            fully_game_details['img'] = picture_url
-            fully_game_details['url'] = game_links
-
-            prices_rows = soup.find_all(class_="col-xs-4 col-sm-3 col-md-2")
-
-            prices_dict = {}
-            global uah_price_float
-
-            for rows in prices_rows:
-                try:
-                    prices = rows.find_all('span')
-                    if ' TRY' in prices[3].text or ' ARS' in prices[3].text or ' INR' in prices[3].text:
-                        uah_price = prices[2].text.replace(u'\xa0', u'').replace(' RUB', '').replace(' UAH',
-                                                                                                     '').replace(',',
-                                                                                                                 '')
-                        uah_price_float = float(uah_price)
-                        prices_dict[uah_price_float] = (prices[3].text.replace(u'\xa0', u''))
-                except IndexError:
-                    pass
-
-            min_price = min(prices_dict)
-
-            if ' TRY' in prices_dict.get(min_price):
-                fully_game_details['region'] = 'Турция'
-            elif ' ARS' in prices_dict.get(min_price):
-                fully_game_details['region'] = 'Аргентина'
-            elif ' INR' in prices_dict.get(min_price):
-                fully_game_details['region'] = 'Индия'
-
-            fully_game_details['price'] = f'{min_price} UAH'
-
-            # print(fully_game_details)
-            total_game_parsing_result.append(fully_game_details)
-        except TypeError:
-            print(TypeError)
-        except ValueError:
-            print(ValueError)
-
-    print(len(total_game_parsing_result))
-
-    day_today = datetime.now().strftime('%d-%m-%Y')
-
-    with open(f'{day_today}.json', 'w', encoding="utf-8") as file:
-        json.dump(total_game_parsing_result, file, ensure_ascii=False)
-
-    file_path = os.path.realpath(f'{day_today}.json')
-
-    print(file_path)
-
-    return file_path
-
-
-def games_parsing_in_newsblock():
+def parse_game_dlc_links():
     response = requests.get(general_newsblock_link, headers=header, cookies=cookies)
     soup = BeautifulSoup(response.text, "lxml")
 
@@ -112,35 +25,97 @@ def games_parsing_in_newsblock():
 
     search_game_spoiler_panel = search_news_blocks.find_all('div', class_='panel-body')
 
-    print(search_game_spoiler_panel[0])
-
-    games_links_from_newsblock = {}
+    all_links_from_newsblock = []
 
     for tag_a in search_game_spoiler_panel:
         a = tag_a.find_all('a')
         for details in a:
-            games_links_from_newsblock[details['title']] = details['href']
+            all_links_from_newsblock.append(details['href'])
 
-    return games_links_from_newsblock
+    # print(all_links_from_newsblock)
+    # print(len(all_links_from_newsblock))
+
+    return all_links_from_newsblock
 
 
-def dlc_parsing_in_newsblock():
-    response = requests.get(general_newsblock_link, headers=header, cookies=cookies)
-    soup = BeautifulSoup(response.text, "lxml")
-    news_blocks = soup.find('div', class_='news-entry-newstext')
+def parsing_names_prices_from_links():
+    parsed_url = parse_game_dlc_links()
+    #parsed_url = ['https://www.xbox-now.com/game/11978/aggelos']
 
-    search_game_spoiler_panel = news_blocks.find_all('div', class_='panel-body')
+    total_parsed_result = []
+    count = 0
 
-    # print(search_game_spoiler_panel[1])
+    for url in parsed_url:
 
-    dlc_links_from_newsblock = {}
+        game_details = {}
+        prices_dict = {}
 
-    for tag_a in search_game_spoiler_panel:
-        a = tag_a.find_all('a')
-        for details in a:
-            dlc_links_from_newsblock[details['title']] = details['href']
+        response = requests.post(url, headers=header, cookies=cookies)
+        soup = BeautifulSoup(response.text, "lxml")
 
-    return dlc_links_from_newsblock
+        game_name_on_page = soup.find_all('h2')[0].text.strip()
+        game_details['game_name'] = game_name_on_page
+
+        picture_url = soup.find(itemprop="image")['src']
+
+        game_details['img'] = picture_url
+        game_details['url'] = url
+
+        prices_rows = soup.select('.col-xs-4.col-sm-3')
+
+        for rows in prices_rows:
+            try:
+                if ' TRY' in rows.text.strip() or ' ARS' in rows.text.strip() or ' INR' in rows.text.strip():
+                    if 'On Sale' in rows.text.strip() or 'с GOLD ' in rows.text.strip():
+                        all_prices = rows.text.strip().replace(u'\xa0', u'').replace('\n', '').split(')')[1:]
+                        low_price = all_prices[0].strip().split(' UAH')
+                        prices_dict[float(low_price[0].strip())] = low_price[1]
+                    elif 'Обычная цена' in rows.text.strip():
+                        all_prices = rows.text.strip().replace(u'\xa0', u'').replace('\n', '').split('Обычная цена')[1:]
+                        print(all_prices)
+                        print(all_prices[0])
+                        low_price = all_prices[0].strip().split(' UAH')
+                        print(low_price)
+                        print(low_price[0])
+                        prices_dict[low_price[0].strip()] = low_price[1]
+                    else:
+                        all_prices = rows.text.strip().replace(u'\xa0', u'').replace('\n', '').split(')')
+                        low_price = all_prices[0].strip().split(' UAH')
+                        prices_dict[float(low_price[0].strip())] = low_price[1]
+
+                    min_price = min(prices_dict.keys())
+                    game_details['low_price'] = f'{min_price} UAH'
+                    if ' TRY' in prices_dict.get(min_price):
+                        game_details['region'] = 'Турция'
+                    elif ' ARS' in prices_dict.get(min_price):
+                        game_details['region'] = 'Аргентина'
+                    elif ' INR' in prices_dict.get(min_price):
+                        game_details['region'] = 'Индия'
+            except IndexError:
+                pass
+            except ValueError:
+                pass
+
+        total_parsed_result.append(game_details)
+        count += 1
+
+        if count == 12:
+            break
+
+    print(f'TOTAL RESULT : {len(total_parsed_result)}')
+
+    day_today = datetime.now().strftime('%d-%m-%Y')
+
+    with open(f'{day_today}.json', 'w', encoding="utf-8") as file:
+        json.dump(total_parsed_result, file, ensure_ascii=False)
+
+    file_path = os.path.realpath(f'{day_today}.json')
+
+    print(file_path)
+    return file_path
+
+
+parsing_names_prices_from_links()
 
 
 def search_new_deals():
