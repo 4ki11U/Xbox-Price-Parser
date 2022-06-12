@@ -1,10 +1,13 @@
-from bs4 import BeautifulSoup
-from requests import cookies
+from database_files.X_Database import XboxDB
 from datetime import datetime
+from bs4 import BeautifulSoup
+# from requests import cookies
 import fake_useragent
 import requests
 import json
 import os
+
+xbox = XboxDB(r'D:\Python Projects\Xboxer-bot\database_files\xboxer_database.db')
 
 header = {
     'user-agent': fake_useragent.UserAgent().random
@@ -14,11 +17,14 @@ cookies = {
     'xnv2_currency_country': 'UA'
 }
 
+cookies_ua = dict(xnv2_currency_country='UA')
+
 general_newsblock_link = 'https://www.xbox-now.com/ru/news'
 
 
-def parse_game_dlc_links():
-    response = requests.get(general_newsblock_link, headers=header, cookies=cookies)
+def parse_game_dlc_links() -> list:
+    """Сбор ссылок на игры и длс из главной страницы"""
+    response = requests.post(general_newsblock_link, cookies=cookies_ua)
     soup = BeautifulSoup(response.text, "lxml")
 
     search_news_blocks = soup.find('div', class_='news-entry-newstext')
@@ -32,25 +38,21 @@ def parse_game_dlc_links():
         for details in a:
             all_links_from_newsblock.append(details['href'])
 
-    # print(all_links_from_newsblock)
-    # print(len(all_links_from_newsblock))
-
     return all_links_from_newsblock
 
 
 def parsing_names_prices_from_links():
     parsed_url = parse_game_dlc_links()
-    #parsed_url = ['https://www.xbox-now.com/game/11978/aggelos']
 
     total_parsed_result = []
-    count = 0
 
     for url in parsed_url:
 
         game_details = {}
         prices_dict = {}
 
-        response = requests.post(url, headers=header, cookies=cookies)
+        response = requests.post(url, cookies=cookies_ua)
+
         soup = BeautifulSoup(response.text, "lxml")
 
         game_name_on_page = soup.find_all('h2')[0].text.strip()
@@ -68,21 +70,19 @@ def parsing_names_prices_from_links():
                 if ' TRY' in rows.text.strip() or ' ARS' in rows.text.strip() or ' INR' in rows.text.strip():
                     if 'On Sale' in rows.text.strip() or 'с GOLD ' in rows.text.strip():
                         all_prices = rows.text.strip().replace(u'\xa0', u'').replace('\n', '').split(')')[1:]
+                        print(all_prices)
                         low_price = all_prices[0].strip().split(' UAH')
                         prices_dict[float(low_price[0].strip())] = low_price[1]
-                    elif 'Обычная цена' in rows.text.strip():
+                    if 'Обычная цена' in rows.text.strip():
                         all_prices = rows.text.strip().replace(u'\xa0', u'').replace('\n', '').split('Обычная цена')[1:]
                         print(all_prices)
-                        print(all_prices[0])
                         low_price = all_prices[0].strip().split(' UAH')
-                        print(low_price)
-                        print(low_price[0])
                         prices_dict[low_price[0].strip()] = low_price[1]
                     else:
                         all_prices = rows.text.strip().replace(u'\xa0', u'').replace('\n', '').split(')')
+                        print(all_prices)
                         low_price = all_prices[0].strip().split(' UAH')
                         prices_dict[float(low_price[0].strip())] = low_price[1]
-
                     min_price = min(prices_dict.keys())
                     game_details['low_price'] = f'{min_price} UAH'
                     if ' TRY' in prices_dict.get(min_price):
@@ -97,10 +97,11 @@ def parsing_names_prices_from_links():
                 pass
 
         total_parsed_result.append(game_details)
-        count += 1
 
-        if count == 12:
-            break
+        # count += 1
+        #
+        # if count == 12:
+        #     break
 
     print(f'TOTAL RESULT : {len(total_parsed_result)}')
 
@@ -112,10 +113,8 @@ def parsing_names_prices_from_links():
     file_path = os.path.realpath(f'{day_today}.json')
 
     print(file_path)
+
     return file_path
-
-
-parsing_names_prices_from_links()
 
 
 def search_new_deals():

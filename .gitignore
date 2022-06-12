@@ -143,6 +143,10 @@ cython_debug/
 
 /database_files/*.db
 
-!/additional/tested.py
+!/additional/tested**.py
 !/database_files/xboxer_database.db
-!/additional/tested.py
+
+/additional/tested.py
+/additional/tested-2.py
+/additional/tested-3.py
+/additional/tested-4.py
